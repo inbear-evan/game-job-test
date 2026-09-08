@@ -113,8 +113,19 @@ export default function App() {
                   frameBorder="0"
                   scrolling="no"
                   referrerPolicy="unsafe-url"
+                  tabIndex={-1}
+                  aria-hidden="true"
                   title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
                 />
+                <a
+                  className="product-frame__click-target"
+                  href={url}
+                  target="_blank"
+                  rel="sponsored nofollow noopener noreferrer"
+                  aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
+                >
+                  <span className="sr-only">쿠팡에서 상품 보기</span>
+                </a>
               </div>
             ))}
           </div>
