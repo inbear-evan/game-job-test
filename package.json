@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate:coupang": "node scripts/generate-coupang-products.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
