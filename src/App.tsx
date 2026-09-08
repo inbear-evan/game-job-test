@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import questionsData from './data/questions.json'
 import jobsData from './data/jobs.json'
+import affiliateProductsData from './data/affiliate-products.json'
 import type { JobsPayload, QuestionsPayload } from './types'
 import { AnswerButton } from './components/AnswerButton'
 import { Progress } from './components/Progress'
@@ -9,6 +10,7 @@ import { rankJobs } from './logic/scoring'
 
 const questions = (questionsData as QuestionsPayload).questions
 const jobs = (jobsData as JobsPayload).jobs
+const affiliateProducts = affiliateProductsData as Record<string, string[]>
 
 const formattedQuestions: Record<number, string> = {
   1: '특정 상황에서 캐릭터가 멈추는 버그를 발견했다면,\n가장 먼저 무엇을 확인하고 싶나요?',
@@ -53,6 +55,8 @@ export default function App() {
   const result = useMemo(() => rankJobs(questions, jobs, answers), [answers])
   const displayQuestion = formattedQuestions[question.id] ?? question.question
   const questionClass = displayQuestion.length > 48 ? 'question question--long' : 'question'
+  const topJob = result.results[0]
+  const recommendedProducts = topJob ? (affiliateProducts[topJob.id] ?? []) : []
 
   const start = () => { setIndex(0); setAnswers({}); setScreen('quiz') }
   const next = () => {
@@ -76,7 +80,7 @@ export default function App() {
     <main className="app-shell result-shell">
       <section className="result-panel">
         <div className="eyebrow">YOUR GAME CAREER</div>
-        <h1>당신에게 가까운 직무는<br/><em>{result.results[0]?.name}</em></h1>
+        <h1>당신에게 가까운 직무는<br/><em>{topJob?.name}</em></h1>
         <Radar scores={result.userAxes} />
         <div className="result-list">
           {result.results.slice(0,5).map((job, i) => (
@@ -87,7 +91,38 @@ export default function App() {
             </article>
           ))}
         </div>
-        <button className="primary" onClick={start}>다시 테스트하기</button>
+
+        <section className="product-recommendations">
+          <div className="product-recommendations__heading">
+            <div>
+              <span className="product-recommendations__eyebrow">RECOMMENDED</span>
+              <h2>{topJob?.name} 준비에 도움이 되는 추천 상품</h2>
+            </div>
+            <span className="product-recommendations__count">{recommendedProducts.length}개</span>
+          </div>
+
+          {recommendedProducts.length > 0 ? (
+            <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
+              {recommendedProducts.map((url, productIndex) => (
+                <div className="product-frame" key={`${url}-${productIndex}`}>
+                  <iframe
+                    src={url}
+                    width="120"
+                    height="240"
+                    frameBorder="0"
+                    scrolling="no"
+                    referrerPolicy="unsafe-url"
+                    title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="product-empty">이 직무의 추천 상품을 준비 중입니다.</p>
+          )}
+        </section>
+
+        <button className="primary result-restart" onClick={start}>다시 테스트하기</button>
         <p className="affiliate-disclosure">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>
       </section>
     </main>
