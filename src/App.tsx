@@ -10,8 +10,17 @@ import { rankJobs } from './logic/scoring'
 
 const questions = (questionsData as QuestionsPayload).questions
 const jobs = (jobsData as JobsPayload).jobs
-const affiliateProducts = affiliateProductsData as Record<string, string[]>
-const sampleAffiliateProduct = 'https://coupa.ng/cpj316'
+
+type AffiliateProduct = {
+  frame: string
+  url: string
+}
+
+const affiliateProducts = affiliateProductsData as Record<string, AffiliateProduct[]>
+const sampleAffiliateProduct: AffiliateProduct = {
+  frame: 'https://coupa.ng/cpj316',
+  url: 'https://coupa.ng/cpj316',
+}
 
 const formattedQuestions: Record<number, string> = {
   1: '특정 상황에서 캐릭터가 멈추는 버그를 발견했다면,\n가장 먼저 무엇을 확인하고 싶나요?',
@@ -104,10 +113,10 @@ export default function App() {
           </div>
 
           <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
-            {recommendedProducts.map((url, productIndex) => (
-              <div className="product-frame" key={`${url}-${productIndex}`}>
+            {recommendedProducts.map((product, productIndex) => (
+              <div className="product-frame" key={`${product.frame}-${productIndex}`}>
                 <iframe
-                  src={url}
+                  src={product.frame}
                   width="120"
                   height="240"
                   frameBorder="0"
@@ -119,7 +128,7 @@ export default function App() {
                 />
                 <a
                   className="product-frame__click-target"
-                  href={url}
+                  href={product.url || product.frame}
                   target="_blank"
                   rel="sponsored nofollow noopener noreferrer"
                   aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
