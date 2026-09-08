@@ -179,6 +179,70 @@ h1 em { font-style: normal; color: #bc93ff; }
   outline: 3px solid #8ef6dc;
   outline-offset: -3px;
 }
+
+.product-row--auto { align-items: stretch; }
+.auto-product-card {
+  flex: 0 0 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 310px;
+  padding: 12px;
+  color: #f8f7ff;
+  text-decoration: none;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.04);
+  scroll-snap-align: start;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.auto-product-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(142,246,220,.55);
+  box-shadow: 0 12px 28px rgba(4,3,29,.28);
+}
+.auto-product-card__image-wrap {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  color: #4d4a68;
+  font-size: 12px;
+  font-weight: 900;
+}
+.auto-product-card__image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.auto-product-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 42px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.auto-product-card b {
+  margin-top: auto;
+  color: #8ef6dc;
+  font-size: 18px;
+}
+.auto-product-card small {
+  color: #aaa9c8;
+  font-size: 12px;
+  font-weight: 700;
+}
+.product-data-note {
+  margin: 10px 2px 0;
+  color: #8f8dab;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -189,11 +253,6 @@ h1 em { font-style: normal; color: #bc93ff; }
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-.product-empty {
-  margin: 8px 0 2px;
-  color: #9f9dbc;
-  font-size: 14px;
 }
 .result-restart { margin-top: 2px; }
 .affiliate-disclosure {
@@ -220,5 +279,6 @@ h1 em { font-style: normal; color: #bc93ff; }
   .product-recommendations__heading { margin-bottom: 16px; }
   .product-recommendations__count { display: none; }
   .product-row { margin-right: -18px; padding-right: 18px; }
+  .auto-product-card { flex-basis: 172px; min-height: 284px; }
   .affiliate-disclosure { font-size: 10px; }
 }
