@@ -97,6 +97,13 @@ h1 em { font-style: normal; color: #bc93ff; }
 .result-item strong { font-size: 18px; }
 .result-item p { margin: 5px 0 0; color: #aaa9c8; line-height: 1.45; }
 .result-item b { color: #75eed5; font-size: 20px; }
+.affiliate-disclosure {
+  margin: 22px 4px 0;
+  color: rgba(199, 197, 220, .72);
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+}
 
 @media (max-width: 640px) {
   .app-shell { padding: 18px; place-items: start center; }
@@ -110,4 +117,5 @@ h1 em { font-style: normal; color: #bc93ff; }
   .quiz-actions { grid-template-columns: 1fr; }
   .back { order: 2; text-align: left; }
   .primary { width: 100%; }
+  .affiliate-disclosure { font-size: 10px; }
 }
