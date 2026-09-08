@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import questionsData from './data/questions.json'
 import jobsData from './data/jobs.json'
 import affiliateProductsData from './data/affiliate-products.json'
-import automaticProductsData from './data/affiliate-products.auto.json'
 import type { JobsPayload, QuestionsPayload } from './types'
 import { AnswerButton } from './components/AnswerButton'
 import { Progress } from './components/Progress'
@@ -11,13 +10,14 @@ import { rankJobs } from './logic/scoring'
 
 const questions = (questionsData as QuestionsPayload).questions
 const jobs = (jobsData as JobsPayload).jobs
+const coupangApiUrl = String(import.meta.env.VITE_COUPANG_API_URL || '').replace(/\/+$/, '')
 
 type AffiliateProduct = {
   frame: string
   url: string
 }
 
-type AutomaticAffiliateProduct = {
+type LiveAffiliateProduct = {
   productId: number | null
   name: string
   image: string
@@ -29,7 +29,6 @@ type AutomaticAffiliateProduct = {
 }
 
 const affiliateProducts = affiliateProductsData as Record<string, AffiliateProduct[]>
-const automaticProducts = automaticProductsData as Record<string, AutomaticAffiliateProduct[]>
 const sampleAffiliateProduct: AffiliateProduct = {
   frame: 'https://coupa.ng/cpj316',
   url: 'https://coupa.ng/cpj316',
@@ -74,19 +73,65 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [liveProducts, setLiveProducts] = useState<LiveAffiliateProduct[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [productsError, setProductsError] = useState(false)
+
   const question = questions[index]
   const result = useMemo(() => rankJobs(questions, jobs, answers), [answers])
   const displayQuestion = formattedQuestions[question.id] ?? question.question
   const questionClass = displayQuestion.length > 48 ? 'question question--long' : 'question'
   const topJob = result.results[0]
 
-  const autoRecommendedProducts = topJob ? (automaticProducts[topJob.id] ?? []) : []
   const configuredProducts = topJob ? (affiliateProducts[topJob.id] ?? []) : []
   const manualRecommendedProducts = configuredProducts.length > 0 ? configuredProducts : [sampleAffiliateProduct]
-  const hasAutomaticProducts = autoRecommendedProducts.length > 0
-  const recommendationCount = hasAutomaticProducts ? autoRecommendedProducts.length : manualRecommendedProducts.length
+  const hasLiveProducts = liveProducts.length > 0
+  const recommendationCount = hasLiveProducts ? liveProducts.length : manualRecommendedProducts.length
 
-  const start = () => { setIndex(0); setAnswers({}); setScreen('quiz') }
+  useEffect(() => {
+    if (screen !== 'result' || !topJob || !coupangApiUrl) {
+      setProductsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setProductsLoading(true)
+    setProductsError(false)
+    setLiveProducts([])
+
+    fetch(`${coupangApiUrl}/recommend?job=${encodeURIComponent(topJob.id)}`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    })
+      .then(async response => {
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload?.message || `HTTP ${response.status}`)
+        const products = Array.isArray(payload?.products) ? payload.products : []
+        if (products.length === 0) throw new Error('No products returned')
+        setLiveProducts(products)
+      })
+      .catch(error => {
+        if (error?.name === 'AbortError') return
+        console.warn('[Coupang] Live recommendation failed. Falling back to manual cards.', error)
+        setProductsError(true)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProductsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [screen, topJob?.id])
+
+  const start = () => {
+    setIndex(0)
+    setAnswers({})
+    setLiveProducts([])
+    setProductsLoading(false)
+    setProductsError(false)
+    setScreen('quiz')
+  }
+
   const next = () => {
     if (!answers[question.id]) return
     if (index === questions.length - 1) setScreen('result')
@@ -126,13 +171,15 @@ export default function App() {
               <span className="product-recommendations__eyebrow">RECOMMENDED</span>
               <h2>{topJob?.name} 준비에 도움이 되는 추천 상품</h2>
             </div>
-            <span className="product-recommendations__count">{recommendationCount}개</span>
+            {!productsLoading && <span className="product-recommendations__count">{recommendationCount}개</span>}
           </div>
 
-          {hasAutomaticProducts ? (
+          {productsLoading ? (
+            <div className="product-loading" role="status">추천 상품을 불러오는 중입니다…</div>
+          ) : hasLiveProducts ? (
             <>
               <div className="product-row product-row--auto" aria-label={`${topJob?.name} 자동 추천 상품`}>
-                {autoRecommendedProducts.map((product, productIndex) => (
+                {liveProducts.map((product, productIndex) => (
                   <a
                     className="auto-product-card"
                     href={product.url}
@@ -149,35 +196,38 @@ export default function App() {
                   </a>
                 ))}
               </div>
-              <p className="product-data-note">상품명·이미지·가격은 쿠팡 검색 결과를 기준으로 자동 갱신되며 실제 판매 정보는 변동될 수 있습니다.</p>
+              <p className="product-data-note">상품명·이미지·가격은 결과 페이지 진입 시 쿠팡 검색 결과를 한 번 조회해 표시합니다. 실제 판매 정보는 변동될 수 있습니다.</p>
             </>
           ) : (
-            <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
-              {manualRecommendedProducts.map((product, productIndex) => (
-                <div className="product-frame" key={`${product.frame}-${productIndex}`}>
-                  <iframe
-                    src={product.frame}
-                    width="120"
-                    height="240"
-                    frameBorder="0"
-                    scrolling="no"
-                    referrerPolicy="unsafe-url"
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
-                  />
-                  <a
-                    className="product-frame__click-target"
-                    href={product.url || product.frame}
-                    target="_blank"
-                    rel="sponsored nofollow noopener noreferrer"
-                    aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
-                  >
-                    <span className="sr-only">쿠팡에서 상품 보기</span>
-                  </a>
-                </div>
-              ))}
-            </div>
+            <>
+              {productsError && <p className="product-fallback-note">자동 추천을 불러오지 못해 기존 추천 상품을 표시합니다.</p>}
+              <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
+                {manualRecommendedProducts.map((product, productIndex) => (
+                  <div className="product-frame" key={`${product.frame}-${productIndex}`}>
+                    <iframe
+                      src={product.frame}
+                      width="120"
+                      height="240"
+                      frameBorder="0"
+                      scrolling="no"
+                      referrerPolicy="unsafe-url"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
+                    />
+                    <a
+                      className="product-frame__click-target"
+                      href={product.url || product.frame}
+                      target="_blank"
+                      rel="sponsored nofollow noopener noreferrer"
+                      aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
+                    >
+                      <span className="sr-only">쿠팡에서 상품 보기</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
 
