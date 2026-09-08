@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   refresh:
@@ -50,10 +52,32 @@ jobs:
         run: |
           if git diff --quiet -- src/data/affiliate-products.auto.json; then
             echo 'No Coupang product changes to commit.'
-            exit 0
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/data/affiliate-products.auto.json
+            git commit -m 'chore: refresh cached Coupang products'
+            git push origin master
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/data/affiliate-products.auto.json
-          git commit -m 'chore: refresh cached Coupang products'
-          git push origin master
+
+      - name: Build Pages with refreshed cache
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: refresh
+    steps:
+      - name: Deploy refreshed Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
