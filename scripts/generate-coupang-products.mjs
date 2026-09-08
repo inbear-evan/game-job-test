@@ -106,6 +106,12 @@ async function searchProducts(keyword, retry = 0) {
   return rows.map(product => normalizeProduct(product, keyword)).filter(Boolean)
 }
 
+function cacheMatchesKeywords(existing, keywords) {
+  if (!Array.isArray(existing) || existing.length === 0) return false
+  const allowed = new Set(keywords)
+  return existing.every(product => product?.keyword && allowed.has(product.keyword))
+}
+
 async function main() {
   const keywordsByRole = await readJson(keywordsPath, {})
   const previousOutput = await readJson(outputPath, {})
@@ -114,11 +120,11 @@ async function main() {
     if (!Array.isArray(keywords) || keywords.length === 0) return false
     if (forceRefresh) return true
     const existing = previousOutput[roleId]
-    return !Array.isArray(existing) || existing.length === 0
+    return !cacheMatchesKeywords(existing, keywords)
   })
 
   if (rolesToRefresh.length === 0) {
-    console.log('[Coupang] All roles already have cached JSON data. No API call is needed.')
+    console.log('[Coupang] All roles already have matching cached JSON data. No API call is needed.')
     console.log('[Coupang] Set COUPANG_FORCE_REFRESH=true when you want to refresh the cached products.')
     return
   }
@@ -133,7 +139,7 @@ async function main() {
   const nextOutput = { ...previousOutput }
   const neededKeywords = [...new Set(rolesToRefresh.flatMap(([, keywords]) => keywords).filter(Boolean))]
 
-  console.log(`[Coupang] ${forceRefresh ? 'Refreshing' : 'Filling missing data for'} ${rolesToRefresh.length} role(s).`)
+  console.log(`[Coupang] ${forceRefresh ? 'Refreshing' : 'Refreshing missing/stale keyword data for'} ${rolesToRefresh.length} role(s).`)
   console.log(`[Coupang] API searches needed: ${neededKeywords.length} unique keyword(s).`)
 
   for (let i = 0; i < neededKeywords.length; i += 1) {
