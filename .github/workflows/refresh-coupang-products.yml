@@ -1,0 +1,59 @@
+name: Refresh Coupang Products
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: 'Refresh all cached Coupang products'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '17 3 1 * *'
+  push:
+    branches: [master]
+    paths:
+      - 'src/data/affiliate-keywords.json'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    environment: github-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Refresh cached Coupang recommendations
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+          COUPANG_SUB_ID: ${{ secrets.COUPANG_SUB_ID }}
+          COUPANG_PRODUCTS_PER_ROLE: 3
+          COUPANG_SEARCH_LIMIT: 5
+          COUPANG_FORCE_REFRESH: ${{ github.event_name == 'schedule' || inputs.force_refresh == true }}
+        run: npm run generate:coupang
+
+      - name: Commit cached JSON when changed
+        run: |
+          if git diff --quiet -- src/data/affiliate-products.auto.json; then
+            echo 'No Coupang product changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/data/affiliate-products.auto.json
+          git commit -m 'chore: refresh cached Coupang products'
+          git push origin master
