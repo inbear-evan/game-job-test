@@ -13,6 +13,7 @@ const outputPath = path.join(root, 'src/data/affiliate-products.auto.json')
 const accessKey = process.env.COUPANG_ACCESS_KEY?.trim()
 const secretKey = process.env.COUPANG_SECRET_KEY?.trim()
 const subId = process.env.COUPANG_SUB_ID?.trim()
+const forceRefresh = String(process.env.COUPANG_FORCE_REFRESH || '').toLowerCase() === 'true'
 
 const productsPerRole = Math.max(1, Number(process.env.COUPANG_PRODUCTS_PER_ROLE || 3))
 const searchLimit = Math.min(10, Math.max(productsPerRole, Number(process.env.COUPANG_SEARCH_LIMIT || 5)))
@@ -62,6 +63,7 @@ function normalizeProduct(product, keyword) {
     isRocket: Boolean(product.isRocket),
     isFreeShipping: Boolean(product.isFreeShipping),
     keyword,
+    updatedAt: new Date().toISOString(),
   }
 }
 
@@ -105,35 +107,50 @@ async function searchProducts(keyword, retry = 0) {
 }
 
 async function main() {
-  if (!accessKey || !secretKey) {
-    console.log('[Coupang] API keys are not configured. Keeping the existing manual/iframe recommendations.')
-    console.log('[Coupang] Add COUPANG_ACCESS_KEY and COUPANG_SECRET_KEY to GitHub Actions Secrets to enable automatic product generation.')
+  const keywordsByRole = await readJson(keywordsPath, {})
+  const previousOutput = await readJson(outputPath, {})
+
+  const rolesToRefresh = Object.entries(keywordsByRole).filter(([roleId, keywords]) => {
+    if (!Array.isArray(keywords) || keywords.length === 0) return false
+    if (forceRefresh) return true
+    const existing = previousOutput[roleId]
+    return !Array.isArray(existing) || existing.length === 0
+  })
+
+  if (rolesToRefresh.length === 0) {
+    console.log('[Coupang] All roles already have cached JSON data. No API call is needed.')
+    console.log('[Coupang] Set COUPANG_FORCE_REFRESH=true when you want to refresh the cached products.')
     return
   }
 
-  const keywordsByRole = await readJson(keywordsPath, {})
-  const previousOutput = await readJson(outputPath, {})
+  if (!accessKey || !secretKey) {
+    console.log(`[Coupang] ${rolesToRefresh.length} role(s) need data, but API keys are not configured.`)
+    console.log('[Coupang] Existing cached/manual recommendations will remain unchanged.')
+    return
+  }
+
   const cache = new Map()
   const nextOutput = { ...previousOutput }
+  const neededKeywords = [...new Set(rolesToRefresh.flatMap(([, keywords]) => keywords).filter(Boolean))]
 
-  const uniqueKeywords = [...new Set(Object.values(keywordsByRole).flat().filter(Boolean))]
-  console.log(`[Coupang] Searching ${uniqueKeywords.length} unique keyword(s)...`)
+  console.log(`[Coupang] ${forceRefresh ? 'Refreshing' : 'Filling missing data for'} ${rolesToRefresh.length} role(s).`)
+  console.log(`[Coupang] API searches needed: ${neededKeywords.length} unique keyword(s).`)
 
-  for (let i = 0; i < uniqueKeywords.length; i += 1) {
-    const keyword = uniqueKeywords[i]
+  for (let i = 0; i < neededKeywords.length; i += 1) {
+    const keyword = neededKeywords[i]
     try {
       const products = await searchProducts(keyword)
       cache.set(keyword, products)
-      console.log(`[Coupang] ${i + 1}/${uniqueKeywords.length} "${keyword}": ${products.length} result(s)`)
+      console.log(`[Coupang] ${i + 1}/${neededKeywords.length} "${keyword}": ${products.length} result(s)`)
     } catch (error) {
       cache.set(keyword, null)
-      console.warn(`[Coupang] ${i + 1}/${uniqueKeywords.length} "${keyword}" failed: ${error.message}`)
+      console.warn(`[Coupang] ${i + 1}/${neededKeywords.length} "${keyword}" failed: ${error.message}`)
     }
 
-    if (i < uniqueKeywords.length - 1) await sleep(requestDelayMs)
+    if (i < neededKeywords.length - 1) await sleep(requestDelayMs)
   }
 
-  for (const [roleId, keywords] of Object.entries(keywordsByRole)) {
+  for (const [roleId, keywords] of rolesToRefresh) {
     const merged = []
     const seen = new Set()
     let hadSuccessfulSearch = false
@@ -154,15 +171,17 @@ async function main() {
       if (merged.length >= productsPerRole) break
     }
 
-    if (hadSuccessfulSearch) nextOutput[roleId] = merged.slice(0, productsPerRole)
+    if (hadSuccessfulSearch && merged.length > 0) {
+      nextOutput[roleId] = merged.slice(0, productsPerRole)
+    }
   }
 
   await fs.writeFile(outputPath, `${JSON.stringify(nextOutput, null, 2)}\n`, 'utf8')
-  console.log(`[Coupang] Wrote automatic recommendations to ${path.relative(root, outputPath)}.`)
+  console.log(`[Coupang] Cached recommendations saved to ${path.relative(root, outputPath)}.`)
 }
 
 main().catch(error => {
   console.error('[Coupang] Generator failed:', error)
-  console.error('[Coupang] Existing manual/iframe recommendations remain available as fallback.')
+  console.error('[Coupang] Existing cached/manual recommendations remain available as fallback.')
   process.exitCode = 0
 })
