@@ -29,15 +29,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate Coupang recommendations
-        env:
-          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
-          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
-          COUPANG_SUB_ID: ${{ secrets.COUPANG_SUB_ID }}
-          COUPANG_PRODUCTS_PER_ROLE: 3
-          COUPANG_SEARCH_LIMIT: 5
-        run: npm run generate:coupang
-
       - name: Build
         run: npm run build
 
