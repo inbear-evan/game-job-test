@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import questionsData from './data/questions.json'
 import jobsData from './data/jobs.json'
 import affiliateProductsData from './data/affiliate-products.json'
+import automaticProductsData from './data/affiliate-products.auto.json'
 import type { JobsPayload, QuestionsPayload } from './types'
 import { AnswerButton } from './components/AnswerButton'
 import { Progress } from './components/Progress'
@@ -16,7 +17,19 @@ type AffiliateProduct = {
   url: string
 }
 
+type AutomaticAffiliateProduct = {
+  productId: number | null
+  name: string
+  image: string
+  price: number
+  url: string
+  isRocket?: boolean
+  isFreeShipping?: boolean
+  keyword?: string
+}
+
 const affiliateProducts = affiliateProductsData as Record<string, AffiliateProduct[]>
+const automaticProducts = automaticProductsData as Record<string, AutomaticAffiliateProduct[]>
 const sampleAffiliateProduct: AffiliateProduct = {
   frame: 'https://coupa.ng/cpj316',
   url: 'https://coupa.ng/cpj316',
@@ -66,8 +79,12 @@ export default function App() {
   const displayQuestion = formattedQuestions[question.id] ?? question.question
   const questionClass = displayQuestion.length > 48 ? 'question question--long' : 'question'
   const topJob = result.results[0]
+
+  const autoRecommendedProducts = topJob ? (automaticProducts[topJob.id] ?? []) : []
   const configuredProducts = topJob ? (affiliateProducts[topJob.id] ?? []) : []
-  const recommendedProducts = configuredProducts.length > 0 ? configuredProducts : [sampleAffiliateProduct]
+  const manualRecommendedProducts = configuredProducts.length > 0 ? configuredProducts : [sampleAffiliateProduct]
+  const hasAutomaticProducts = autoRecommendedProducts.length > 0
+  const recommendationCount = hasAutomaticProducts ? autoRecommendedProducts.length : manualRecommendedProducts.length
 
   const start = () => { setIndex(0); setAnswers({}); setScreen('quiz') }
   const next = () => {
@@ -109,35 +126,59 @@ export default function App() {
               <span className="product-recommendations__eyebrow">RECOMMENDED</span>
               <h2>{topJob?.name} 준비에 도움이 되는 추천 상품</h2>
             </div>
-            <span className="product-recommendations__count">{recommendedProducts.length}개</span>
+            <span className="product-recommendations__count">{recommendationCount}개</span>
           </div>
 
-          <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
-            {recommendedProducts.map((product, productIndex) => (
-              <div className="product-frame" key={`${product.frame}-${productIndex}`}>
-                <iframe
-                  src={product.frame}
-                  width="120"
-                  height="240"
-                  frameBorder="0"
-                  scrolling="no"
-                  referrerPolicy="unsafe-url"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
-                />
-                <a
-                  className="product-frame__click-target"
-                  href={product.url || product.frame}
-                  target="_blank"
-                  rel="sponsored nofollow noopener noreferrer"
-                  aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
-                >
-                  <span className="sr-only">쿠팡에서 상품 보기</span>
-                </a>
+          {hasAutomaticProducts ? (
+            <>
+              <div className="product-row product-row--auto" aria-label={`${topJob?.name} 자동 추천 상품`}>
+                {autoRecommendedProducts.map((product, productIndex) => (
+                  <a
+                    className="auto-product-card"
+                    href={product.url}
+                    target="_blank"
+                    rel="sponsored nofollow noopener noreferrer"
+                    key={`${product.productId ?? product.url}-${productIndex}`}
+                  >
+                    <div className="auto-product-card__image-wrap">
+                      {product.image ? <img src={product.image} alt="" loading="lazy" /> : <span>BOOK</span>}
+                    </div>
+                    <strong>{product.name}</strong>
+                    {product.price > 0 && <b>{product.price.toLocaleString('ko-KR')}원</b>}
+                    <small>쿠팡에서 보기 ↗</small>
+                  </a>
+                ))}
               </div>
-            ))}
-          </div>
+              <p className="product-data-note">상품명·이미지·가격은 쿠팡 검색 결과를 기준으로 자동 갱신되며 실제 판매 정보는 변동될 수 있습니다.</p>
+            </>
+          ) : (
+            <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
+              {manualRecommendedProducts.map((product, productIndex) => (
+                <div className="product-frame" key={`${product.frame}-${productIndex}`}>
+                  <iframe
+                    src={product.frame}
+                    width="120"
+                    height="240"
+                    frameBorder="0"
+                    scrolling="no"
+                    referrerPolicy="unsafe-url"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
+                  />
+                  <a
+                    className="product-frame__click-target"
+                    href={product.url || product.frame}
+                    target="_blank"
+                    rel="sponsored nofollow noopener noreferrer"
+                    aria-label={`${topJob?.name} 추천 상품 ${productIndex + 1} 쿠팡에서 보기`}
+                  >
+                    <span className="sr-only">쿠팡에서 상품 보기</span>
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <button className="primary result-restart" onClick={start}>다시 테스트하기</button>
