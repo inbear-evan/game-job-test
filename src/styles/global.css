@@ -141,6 +141,7 @@ h1 em { font-style: normal; color: #bc93ff; }
   scrollbar-width: thin;
 }
 .product-frame {
+  position: relative;
   flex: 0 0 136px;
   min-height: 256px;
   display: grid;
@@ -150,6 +151,13 @@ h1 em { font-style: normal; color: #bc93ff; }
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(255,255,255,.035);
   scroll-snap-align: start;
+  overflow: hidden;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.product-frame:hover {
+  transform: translateY(-3px);
+  border-color: rgba(142,246,220,.55);
+  box-shadow: 0 12px 28px rgba(4,3,29,.28);
 }
 .product-frame iframe {
   display: block;
@@ -158,6 +166,29 @@ h1 em { font-style: normal; color: #bc93ff; }
   border: 0;
   border-radius: 10px;
   background: white;
+  pointer-events: none;
+}
+.product-frame__click-target {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.product-frame__click-target:focus-visible {
+  outline: 3px solid #8ef6dc;
+  outline-offset: -3px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .product-empty {
   margin: 8px 0 2px;
