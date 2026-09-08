@@ -11,6 +11,7 @@ import { rankJobs } from './logic/scoring'
 const questions = (questionsData as QuestionsPayload).questions
 const jobs = (jobsData as JobsPayload).jobs
 const affiliateProducts = affiliateProductsData as Record<string, string[]>
+const sampleAffiliateProduct = 'https://coupa.ng/cpj316'
 
 const formattedQuestions: Record<number, string> = {
   1: '특정 상황에서 캐릭터가 멈추는 버그를 발견했다면,\n가장 먼저 무엇을 확인하고 싶나요?',
@@ -56,7 +57,8 @@ export default function App() {
   const displayQuestion = formattedQuestions[question.id] ?? question.question
   const questionClass = displayQuestion.length > 48 ? 'question question--long' : 'question'
   const topJob = result.results[0]
-  const recommendedProducts = topJob ? (affiliateProducts[topJob.id] ?? []) : []
+  const configuredProducts = topJob ? (affiliateProducts[topJob.id] ?? []) : []
+  const recommendedProducts = configuredProducts.length > 0 ? configuredProducts : [sampleAffiliateProduct]
 
   const start = () => { setIndex(0); setAnswers({}); setScreen('quiz') }
   const next = () => {
@@ -101,25 +103,21 @@ export default function App() {
             <span className="product-recommendations__count">{recommendedProducts.length}개</span>
           </div>
 
-          {recommendedProducts.length > 0 ? (
-            <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
-              {recommendedProducts.map((url, productIndex) => (
-                <div className="product-frame" key={`${url}-${productIndex}`}>
-                  <iframe
-                    src={url}
-                    width="120"
-                    height="240"
-                    frameBorder="0"
-                    scrolling="no"
-                    referrerPolicy="unsafe-url"
-                    title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="product-empty">이 직무의 추천 상품을 준비 중입니다.</p>
-          )}
+          <div className="product-row" aria-label={`${topJob?.name} 추천 상품`}>
+            {recommendedProducts.map((url, productIndex) => (
+              <div className="product-frame" key={`${url}-${productIndex}`}>
+                <iframe
+                  src={url}
+                  width="120"
+                  height="240"
+                  frameBorder="0"
+                  scrolling="no"
+                  referrerPolicy="unsafe-url"
+                  title={`${topJob?.name} 추천 상품 ${productIndex + 1}`}
+                />
+              </div>
+            ))}
+          </div>
         </section>
 
         <button className="primary result-restart" onClick={start}>다시 테스트하기</button>
